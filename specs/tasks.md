@@ -1,14 +1,14 @@
 # Implementation Tasks: Strava Training Dashboard
 
 **Project**: Strava Training Dashboard (Goal + Svelte)  
-**Spec Version**: v0.2  
+**Spec Version**: v0.3  
 **Last Updated**: 2025-01-XX
 
 ---
 
 ## 🎯 **Overview**
 
-This document breaks down the implementation of the Strava Training Dashboard into actionable tasks, organized by phase and priority. All tasks reference the main [specification](../strava_dashboard_spec_v0.2.md) and [constitution](../constitution.md).
+This document breaks down the implementation of the Strava Training Dashboard into actionable tasks, organized by phase and priority. All tasks reference the main [specification](../strava_dashboard_spec_v0.3.md) and [constitution](../constitution.md).
 
 ---
 
@@ -148,7 +148,7 @@ See [constitution.md](../constitution.md) for the complete project structure.
 ---
 
 ## 🔗 **Related Documents**
-- [Project Specification](../strava_dashboard_spec_v0.2.md)
+- [Project Specification](../strava_dashboard_spec_v0.3.md)
 - [Constitution](../constitution.md)
 - [ADR-1: Goal Language](../adrs/ADR-1_goal_language.md)
 - [ADR-2: HTTP Extension](../adrs/ADR-2_http_extension.md)

@@ -8,6 +8,7 @@
 3. **User Privacy** – Strava tokens and activity data are sensitive; handle with care
 4. **Maintainability** – Extensions must be reusable and well-documented
 5. **Progressive Enhancement** – Start with `curl` for API calls, but build proper Goal extensions for production
+6. **Testable Code** – All non-trivial logic must have automated tests; if it's hard to test, refactor it
 
 ---
 
@@ -20,6 +21,7 @@
 | **Separation of Concerns** | Goal handles backend (sync, stats); Svelte handles frontend | Clean boundaries between systems |
 | **Document Extensions** | Any Goal extension must include usage examples and limitations | Ensures maintainability |
 | **Fail Loud** | Errors from `curl` or Go extensions must propagate clearly | Easier debugging |
+| **Testable Code** | All non-trivial logic must have automated tests; if it's hard to test, refactor it | Ensures reliability and maintainability |
 
 ---
 
@@ -40,6 +42,7 @@
 - **All PRs** must reference the relevant spec section
 - **Database schema changes** require migration script
 - **New statistics** require spec update with calculation formula
+- **No Merge Without Tests**: PRs that add or modify code must include tests; exceptions require explicit approval and must be documented in the PR description
 
 ---
 
@@ -49,7 +52,11 @@
 |------|----------|
 | **Language** | **Goal** (primary), Go (for extensions), JavaScript/TypeScript (Svelte frontend) |
 | **Style** | Follow Goal's idioms (minimal, explicit); Svelte follows its [style guide](https://svelte.dev/docs/fundamentals) |
-| **Testing** | Goal: manual testing + script-based validation (Goal lacks mature test frameworks). Svelte: `vitest` |
+| **Testing** | **Required**: Unit tests for all calculation logic (stats, pace); Integration tests for API sync; E2E tests for dashboard. Minimum 80% coverage for backend and frontend. |
+| **Test Location** | `tests/` directory, mirroring source structure (e.g., `tests/sync_test.goal`, `tests/stats.test.ts`) |
+| **Test Framework** | Goal: Custom test scripts per ADR; Svelte: `vitest` with `@testing-library/svelte` |
+| **Test Naming** | `[module]_test.goal` or `[module].test.ts` |
+| **CI Integration** | All tests must pass in CI before merge |
 | **Error Handling** | Goal: Return error codes + messages; never silent failures. Svelte: Display user-friendly errors |
 | **Configuration** | Environment variables (`.env` file) for tokens; Goal reads via shell or extension |
 | **Dependencies** | Goal: Prefer stdlib; Go extensions only for HTTP/web; Svelte: Minimal npm packages |
@@ -74,7 +81,7 @@ All ADRs are documented separately in `specs/adrs/`.
 ```
 /strava_dashboard
 ├── specs/
-│   ├── strava_dashboard_spec_v0.2.md    # Project specification
+│   ├── strava_dashboard_spec_v0.3.md    # Project specification
 │   ├── constitution.md                  # This file
 │   └── adrs/                            # Architecture Decision Records
 │       ├── ADR-1_goal_language.md
@@ -86,6 +93,10 @@ All ADRs are documented separately in `specs/adrs/`.
 │   ├── sync.goal                       # Fetch & store activities
 │   ├── stats.goal                      # Calculations
 │   └── db.goal                         # Database interactions
+├── tests/                              # Test files
+│   ├── sync_test.goal                  # Sync logic tests
+│   ├── stats_test.goal                 # Calculation tests
+│   └── integration/                    # Integration tests
 ├── extensions/                         # Goal extensions (Go packages)
 │   ├── http/                           # HTTP client/server
 │   │   ├── http.go                     # Go implementation

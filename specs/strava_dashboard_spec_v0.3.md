@@ -3,7 +3,7 @@
 **Status**: Draft  
 **Author**: mandus  
 **Date**: 2026-05-14  
-**Version**: 0.2  
+**Version**: 0.3  
 
 ---
 
@@ -59,6 +59,7 @@
   - Distance displayed in km (stored in meters, converted on display)
 - **Portability**: Local DB (SQLite) for easy setup; migratable to PostgreSQL later
 - **Token Management**: System must support long-lived Strava refresh tokens with initial OAuth2 setup
+- **Testing**: All code must have automated tests with minimum 80% coverage; tests must pass in CI before merge
 
 ---
 
@@ -190,6 +191,13 @@ CREATE TABLE stats (
 - [ ] Failed requests are retried up to 3 times with backoff
 - [ ] Token expiration triggers refresh flow (if refresh token present)
 
+### Testing
+- [ ] All calculation functions (pace, weekly distance) have unit tests
+- [ ] API sync logic has integration tests verifying data flow from Strava → DB
+- [ ] Dashboard rendering has E2E tests verifying UI displays correct stats
+- [ ] Minimum 80% code coverage for backend (Goal) and frontend (Svelte)
+- [ ] All tests pass in CI before merge
+
 ---
 
 ## 8. Open Questions
@@ -209,10 +217,17 @@ CREATE TABLE stats (
   - Clarified "progress" scope (user-specified goals via future Web UI)
   - Added `is_deleted` flag to activities table
   - Added `refresh_token` to users table
+- 2025-01-XX: Added testing requirements (v0.3)
+  - Added "Testable Code" principle to constitution
+  - Added "No Merge Without Tests" governance rule
+  - Updated Coding Standards with specific test requirements
+  - Added Testing section to acceptance criteria
+  - Added Testing to Non-Functional Requirements
+  - Added tests/ directory to file structure
 
 ---
 
 **Next Steps**:
-1. Review v0.2 for any remaining issues
-2. Create a constitution for the project
-3. Break down into implementation tasks
+1. Review v0.3 for any remaining issues
+2. Begin implementation with Phase 0 (Foundation)
+3. Update constitution and spec as implementation reveals gaps

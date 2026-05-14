@@ -4,7 +4,7 @@ A local system that syncs Strava training activities, calculates running statist
 
 ## 📋 Project Status
 
-- **Status**: Specification Complete (v0.2)
+- **Status**: Specification Complete (v0.3)
 - **Primary Language**: [Goal](https://codeberg.org/anaseto/goal) (with Go extensions)
 - **Frontend**: [Svelte](https://svelte.dev/)
 - **Database**: SQLite
@@ -16,7 +16,7 @@ A local system that syncs Strava training activities, calculates running statist
 ```
 running/
 ├── specs/                          # Spec-Driven Development documents
-│   ├── strava_dashboard_spec_v0.2.md  # Main project specification
+│   ├── strava_dashboard_spec_v0.3.md  # Main project specification
 │   ├── constitution.md               # Project principles & governance
 │   ├── tasks.md                      # Implementation task breakdown
 │   └── adrs/                         # Architecture Decision Records
@@ -77,7 +77,7 @@ goal run main.goal
 
 | Document | Purpose |
 |----------|---------|
-| [specs/strava_dashboard_spec_v0.2.md](specs/strava_dashboard_spec_v0.2.md) | Full project specification |
+| [specs/strava_dashboard_spec_v0.3.md](specs/strava_dashboard_spec_v0.3.md) | Full project specification |
 | [specs/constitution.md](specs/constitution.md) | Principles, governance, standards |
 | [specs/tasks.md](specs/tasks.md) | Implementation task breakdown |
 | [specs/adrs/](specs/adrs/) | Architecture decisions |
