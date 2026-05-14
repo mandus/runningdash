@@ -34,6 +34,14 @@ This project uses **Spec-Driven Development (SDD)**, a methodology from [GitHub 
 - **ALWAYS** work from the highest-priority incomplete task
 - Update task status (⬜/🟡/✅) as you work
 
+### 5. **Goal Extensions Are Pure Go**
+- **CRITICAL**: Goal extensions are **Go packages**, NOT `.goal` files
+- Each extension must have an `Import(ctx *goal.Context, pfx string)` function
+- Functions are registered using `ctx.RegisterMonad()`, `ctx.RegisterDyad()`, etc.
+- Functions work with Goal's `V` type (variant type for Goal values)
+- See existing extensions in `/tmp/goal/encoding/base64/` for reference
+- **NEVER** create `.goal` files for extensions — they are Go-only
+
 ---
 
 ## 📖 **Repository Structure**
@@ -50,9 +58,26 @@ running/
 │       ├── ADR-3_web_serving.md
 │       ├── ADR-4_svelte_frontend.md
 │       └── ADR-5_sqlite_extension.md
-├── goal/                           # Goal source (TODO)
-├── extensions/                     # Goal extensions in Go (TODO)
+├── cmd/
+│   └── strava_goal/                 # Custom Goal binary with extensions
+│       └── main.go                 # Entry point that imports extensions
+├── extensions/                     # Goal extensions (Go packages)
+│   ├── http/                       # HTTP client extension
+│   │   ├── http.go                 # Go implementation with Import()
+│   │   ├── http_test.go            # Go unit tests
+│   │   └── test_http.goal          # Goal integration tests
+│   ├── sqlite/                     # SQLite database extension
+│   │   ├── sqlite.go               # Go implementation with Import()
+│   │   ├── sqlite_test.go          # Go unit tests
+│   │   └── test_sqlite.goal        # Goal integration tests
+│   └── json/                       # JSON encoding/decoding extension
+│       ├── json.go                 # Go implementation with Import()
+│       ├── json_test.go            # Go unit tests
+│       └── test_json.goal          # Goal integration tests
+├── goal/                           # Goal source (TODO - for reference)
 ├── frontend/                       # Svelte app (TODO)
+├── scripts/
+│   └── pre-commit                  # SDD validation hook
 ├── .gitignore
 ├── README.md
 └── AGENTS.md                       # This file
@@ -130,6 +155,58 @@ running/
 
 4. **Validate against acceptance criteria** (Spec §7):
    - Before marking complete, verify all relevant criteria are met
+
+### Goal Extension Development (CRITICAL)
+
+**Goal extensions follow a specific pattern:**
+
+1. **Package Structure**:
+   ```
+   extensions/[name]/
+   ├── [name].go          # Go package with Import() function
+   ├── [name]_test.go     # Go tests using Goal context
+   └── test_[name].goal   # Goal code that uses the extension
+   ```
+
+2. **Required `Import` Function**:
+   ```go
+   func Import(ctx *goal.Context, pfx string) {
+       // Register functions with the Goal context
+       ctx.AssignGlobal(pfx+"func_name", ctx.RegisterMonad("."+pfx+"func_name", vfFunc))
+   }
+   ```
+
+3. **Function Implementation**:
+   - Functions receive `[]goal.V` (array of Goal values)
+   - Functions return `goal.V` (single Goal value)
+   - Use `args[0].BV().(goal.S)` to extract string from first argument
+   - Use `goal.NewS()`, `goal.NewI()`, `goal.NewD()`, `goal.NewAS()` to create return values
+   - Use `goal.Panicf()` for errors
+
+4. **Type Conversions**:
+   - Goal string → Go: `args[0].BV().(goal.S)` then `string(...)`
+   - Go string → Goal: `goal.NewS(value)`
+   - Goal int → Go: `args[0].BV().(goal.I)` then `int64(...)`
+   - Go int → Goal: `goal.NewI(value)`
+   - Goal dict → Go: `args[0].BV().(goal.D)`
+   - Go map → Goal: `goal.NewD(keys, values)`
+   - Goal array → Go: `args[0].BV().(*goal.AS)`
+   - Go slice → Goal: `goal.NewAS(elements)`
+
+5. **Testing**:
+   - **Go tests**: Use `goal.NewContext()`, call `Import()`, then `ctx.Eval()`
+   - **Goal tests**: Create `.goal` files that use the extension functions
+   - Goal tests require the custom Goal binary with extensions loaded
+
+6. **Building Custom Goal Binary**:
+   ```bash
+   cd cmd/strava_goal
+   go mod init github.com/mandus/runningdash/cmd/strava_goal
+   go mod edit -replace codeberg.org/anaseto/goal=../../goal
+   go mod edit -replace github.com/mandus/runningdash=../..
+   go mod tidy
+   go build
+   ```
 
 ### After Completing Work
 
