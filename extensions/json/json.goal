@@ -1,0 +1,58 @@
+// JSON Extension for Goal
+// Provides JSON parsing and encoding functionality
+//
+// Implements requirements from:
+// - specs/strava_dashboard_spec_v0.3.md §5.1 (Strava API - JSON responses)
+// - specs/adrs/ADR-2_http_extension.md (needs JSON parsing)
+//
+// Usage:
+//   parsed := json.parse('{"json": "{\"key\": \"value\"}"}')
+//   result := json.parse(parsed)["result"]
+//   value := result["key"]
+
+package json
+
+// Parse parses a JSON string into a Goal-accessible map
+// 
+// Parameters:
+//   requestJSON - JSON string containing:
+//     - json: string (required) - JSON string to parse
+//
+// Returns:
+//   JSON string containing:
+//     - result: map - parsed JSON as a map
+//     - error: string - error message, empty if success
+//
+// Example:
+//   # Parse Strava API response
+//   http_response := http.get('{"url": "https://api.strava.com/...", "headers": {...}}')
+//   parsed_http := json.parse(http_response)
+//   if parsed_http["error"] != "" { handle error }
+//   
+//   # Parse the actual JSON body
+//   body_parsed := json.parse('{"json": ' + parsed_http["body"] + '}')
+//   activities := body_parsed["result"]
+func parse(requestJSON string) string {
+	// Implemented in json.go (Go)
+}
+
+// Encode encodes a Goal data structure to JSON string
+// 
+// Parameters:
+//   requestJSON - JSON string containing:
+//     - data: any - Goal data structure to encode
+//
+// Returns:
+//   JSON string containing:
+//     - json: string - encoded JSON string
+//     - error: string - error message, empty if success
+//
+// Example:
+//   # Encode a map to JSON
+//   data := {"name": "test", "value": 123}
+//   encoded := json.encode('{"data": ' + json.encode('{"data": ' + json.encode(data) + '}') + '}')
+//   # Or simpler with explicit JSON:
+//   encoded := json.encode('{"data": {"name": "test", "value": 123}}')
+func encode(requestJSON string) string {
+	// Implemented in json.go (Go)
+}
