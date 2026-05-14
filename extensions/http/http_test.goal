@@ -1,0 +1,72 @@
+// Tests for HTTP Goal extension
+// Demonstrates that the extension works correctly
+//
+// Run with: goal run http_test.goal
+
+package main
+
+import "http"
+import "json"
+
+func main() {
+	// Test 1: Simple GET request
+	println("Test 1: Simple GET request")
+	getRequest := json.encode({
+		"url": "https://httpbin.org/get",
+		"headers": {
+			"Accept": "application/json"
+		}
+	})
+	getResponse := http.get(getRequest)
+	parsed := json.parse(getResponse)
+	
+	if parsed["error"] != "" {
+		println("ERROR: " + parsed["error"])
+		return
+	}
+	
+	println("Status: " + string(parsed["status"]))
+	println("Body length: " + string(len(parsed["body"])))
+	println("Test 1: PASSED")
+	println("")
+	
+	// Test 2: GET with query parameters
+	println("Test 2: GET with query parameters")
+	getRequest2 := json.encode({
+		"url": "https://httpbin.org/get?test=value",
+		"headers": {
+			"Accept": "application/json"
+		}
+	})
+	getResponse2 := http.get(getRequest2)
+	parsed2 := json.parse(getResponse2)
+	
+	if parsed2["error"] != "" {
+		println("ERROR: " + parsed2["error"])
+		return
+	}
+	
+	println("Status: " + string(parsed2["status"]))
+	println("Test 2: PASSED")
+	println("")
+	
+	// Test 3: Invalid URL (should error)
+	println("Test 3: Invalid URL (error handling)")
+	getRequest3 := json.encode({
+		"url": "invalid-url",
+		"headers": {}
+	})
+	getResponse3 := http.get(getRequest3)
+	parsed3 := json.parse(getResponse3)
+	
+	if parsed3["error"] != "" {
+		println("Expected error: " + parsed3["error"])
+		println("Test 3: PASSED")
+	} else {
+		println("ERROR: Expected error for invalid URL")
+		return
+	}
+	println("")
+	
+	println("All HTTP extension tests passed!")
+}

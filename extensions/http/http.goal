@@ -5,58 +5,15 @@
 // - specs/strava_dashboard_spec_v0.3.md §5.1 (Strava API)
 // - specs/adrs/ADR-2_http_extension.md
 //
-// Usage:
-//   result := http.get('{"url": "https://api.example.com", "headers": {"Authorization": "Bearer token"}}')
-//   parsed := json.parse(result)
-//   status := parsed["status"]
-//   body := parsed["body"]
+// This file declares the Goal interface to the Go HTTP extension.
+// The actual implementation is in http.go (Go package).
 
 package http
 
-// Get makes an HTTP GET request
-// 
-// Parameters:
-//   requestJSON - JSON string containing:
-//     - url: string (required)
-//     - headers: map[string]string (optional)
-//     - method: string (optional, defaults to "GET")
-//
-// Returns:
-//   JSON string containing:
-//     - status: int (HTTP status code)
-//     - body: string (response body)
-//     - error: string (error message, empty if success)
-//
-// Example:
-//   request := json.encode({"url": "https://www.strava.com/api/v3/athlete/activities", 
-//                          "headers": {"Authorization": "Bearer " + token}})
-//   response := http.get(request)
-//   data := json.parse(response)
-func get(requestJSON string) string {
-	// Implemented in http.go (Go)
-}
+// get makes an HTTP GET request
+// Takes a JSON string with url and headers, returns JSON with status, body, error
+func get(request string) string
 
-// Post makes an HTTP POST request
-// 
-// Parameters:
-//   requestJSON - JSON string containing:
-//     - url: string (required)
-//     - headers: map[string]string (optional)
-//     - body: string (optional)
-//     - method: string (optional, defaults to "POST")
-//
-// Returns:
-//   JSON string containing:
-//     - status: int (HTTP status code)
-//     - body: string (response body)
-//     - error: string (error message, empty if success)
-//
-// Example:
-//   request := json.encode({"url": "https://api.example.com/endpoint",
-//                          "headers": {"Content-Type": "application/json"},
-//                          "body": '{"key": "value"}'})
-//   response := http.post(request)
-//   data := json.parse(response)
-func post(requestJSON string) string {
-	// Implemented in http.go (Go)
-}
+// post makes an HTTP POST request  
+// Takes a JSON string with url, headers, and body, returns JSON with status, body, error
+func post(request string) string
