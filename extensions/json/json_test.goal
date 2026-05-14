@@ -1,0 +1,99 @@
+// Tests for JSON Goal extension
+// Demonstrates that the extension works correctly
+//
+// Run with: goal run json_test.goal
+
+package main
+
+import "json"
+
+func main() {
+	// Test 1: Parse simple JSON object
+	println("Test 1: Parse simple JSON object")
+	parseRequest := json.encode({
+		"json": `{"name": "test", "value": 123, "active": true}`
+	})
+	parseResponse := json.parse(parseRequest)
+	parsed := json.parse(parseResponse)
+	
+	if parsed["error"] != "" {
+		println("ERROR: " + parsed["error"])
+		return
+	}
+	
+	result := parsed["result"]
+	println("Parsed name: " + string(result["name"]))
+	println("Parsed value: " + string(result["value"]))
+	println("Parsed active: " + string(result["active"]))
+	println("Test 1: PASSED")
+	println("")
+	
+	// Test 2: Parse JSON array
+	println("Test 2: Parse JSON array")
+	parseRequest2 := json.encode({
+		"json": `[1, 2, 3, "four"]`
+	})
+	parseResponse2 := json.parse(parseRequest2)
+	parsed2 := json.parse(parseResponse2)
+	
+	if parsed2["error"] != "" {
+		println("ERROR: " + parsed2["error"])
+		return
+	}
+	
+	result2 := parsed2["result"]
+	println("Array length: " + string(len(result2)))
+	println("First element: " + string(result2[0]))
+	println("Test 2: PASSED")
+	println("")
+	
+	// Test 3: Encode map to JSON
+	println("Test 3: Encode map to JSON")
+	encodeRequest := json.encode({
+		"data": {"key1": "value1", "key2": 42}
+	})
+	encodeResponse := json.encode(encodeRequest)
+	parsedEncode := json.parse(encodeResponse)
+	
+	if parsedEncode["error"] != "" {
+		println("ERROR: " + parsedEncode["error"])
+		return
+	}
+	
+	jsonString := parsedEncode["json"]
+	println("Encoded JSON: " + jsonString)
+	
+	// Verify it's valid JSON by parsing it back
+	verifyRequest := json.encode({
+		"json": jsonString
+	})
+	verifyResponse := json.parse(verifyRequest)
+	parsedVerify := json.parse(verifyResponse)
+	
+	if parsedVerify["error"] != "" {
+		println("ERROR: Encoded JSON is invalid: " + parsedVerify["error"])
+		return
+	}
+	
+	println("Test 3: PASSED")
+	println("")
+	
+	// Test 4: Invalid JSON (should error)
+	println("Test 4: Invalid JSON (error handling)")
+	parseRequest4 := json.encode({
+		"json": `{"invalid": json}`
+	})
+	parseResponse4 := json.parse(parseRequest4)
+	parsed4 := json.parse(parseResponse4)
+	
+	if parsed4["error"] != "" {
+		println("Expected error: " + parsed4["error"])
+		println("Test 4: PASSED")
+	} else {
+		println("ERROR: Expected error for invalid JSON")
+		return
+	}
+	println("")
+	
+	println("All JSON extension tests passed!")
+}
