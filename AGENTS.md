@@ -3,6 +3,7 @@
 **Project**: Strava Training Dashboard  
 **Methodology**: Spec-Driven Development (SDD)  
 **Spec Kit**: GitHub Spec Kit inspired workflow
+**Note**: Always use version-agnostic spec references (e.g., `specs/strava_dashboard_spec_*.md`)
 
 ---
 
@@ -40,7 +41,7 @@ This project uses **Spec-Driven Development (SDD)**, a methodology from [GitHub 
 ```
 running/
 ├── specs/                          # ✅ ALWAYS READ FIRST
-│   ├── strava_dashboard_spec_v0.2.md  # Main specification
+│   ├── strava_dashboard_spec_*.md  # Main specification (latest version)
 │   ├── constitution.md               # Principles & governance
 │   ├── tasks.md                      # Current work items
 │   └── adrs/                         # Architecture decisions
@@ -63,7 +64,7 @@ running/
 
 ### Before Starting Any Work
 
-1. **Read the spec**: `specs/strava_dashboard_spec_v0.2.md`
+1. **Read the spec**: `specs/strava_dashboard_spec_*.md` (latest version)
    - Understand the **purpose**, **scope**, **interfaces**, and **acceptance criteria**
    - Note all **business rules** (BR-1 through BR-7)
 
@@ -84,7 +85,7 @@ running/
 1. **Reference the spec** in all code comments:
    ```
    // Implements BR-3: pace_min_per_km = (moving_time / distance) * 1000 / 60
-   // See: specs/strava_dashboard_spec_v0.2.md §6
+   // See: specs/strava_dashboard_spec_*.md §6
    ```
 
 2. **Reference ADRs** for architectural decisions:
@@ -142,7 +143,7 @@ This project follows SDD as inspired by GitHub Spec Kit:
 
 | Concept | Location | Agent Action |
 |---------|----------|--------------|
-| **Spec** | `specs/strava_dashboard_spec_v0.2.md` | Read before any implementation |
+| **Spec** | `specs/strava_dashboard_spec_*.md` | Read before any implementation |
 | **Constitution** | `specs/constitution.md` | Follow principles and standards |
 | **ADRs** | `specs/adrs/` | Reference when making tech decisions |
 | **Tasks** | `specs/tasks.md` | Work from this list, update status |
@@ -199,7 +200,7 @@ When asking an agent to work on this project, use:
 You are working on the Strava Training Dashboard project.
 
 RULES:
-1. READ specs/strava_dashboard_spec_v0.2.md FIRST
+1. READ specs/strava_dashboard_spec_*.md FIRST
 2. READ specs/constitution.md SECOND
 3. READ specs/adrs/ for architecture context
 4. READ specs/tasks.md for current work items

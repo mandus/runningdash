@@ -1,0 +1,142 @@
+#!/bin/bash
+
+# Pre-commit hook for Strava Training Dashboard
+# Ensures consistency between spec versions and references
+#
+# To install this hook:
+#   cp scripts/pre-commit .git/hooks/pre-commit
+#   chmod +x .git/hooks/pre-commit
+
+set -euo pipefail
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Counters
+ERRORS=0
+
+# Function to print error
+error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+    ERRORS=$((ERRORS + 1))
+}
+
+# Function to print warning
+warn() {
+    echo -e "${YELLOW}[WARN]${NC} $1"
+}
+
+# Function to print success
+success() {
+    echo -e "${GREEN}[OK]${NC} $1"
+}
+
+echo "=========================================="
+echo "Running Spec-Driven Development checks..."
+echo "=========================================="
+
+# Check 1: Exactly one spec file with version in name
+SPEC_FILES=$(find specs -maxdepth 1 -name 'strava_dashboard_spec_v*.md' | sort)
+SPEC_COUNT=$(echo "$SPEC_FILES" | wc -l)
+
+if [ "$SPEC_COUNT" -eq 0 ]; then
+    error "No spec file found matching 'specs/strava_dashboard_spec_v*.md'"
+    error "Expected exactly one versioned spec file"
+elif [ "$SPEC_COUNT" -gt 1 ]; then
+    error "Multiple spec files found: $SPEC_COUNT"
+    for f in $SPEC_FILES; do
+        error "  - $f"
+    done
+    error "Expected exactly one versioned spec file"
+else
+    SPEC_FILE=$(echo "$SPEC_FILES" | head -1)
+    SPEC_VERSION=$(basename "$SPEC_FILE" | grep -oE 'v[0-9]+\.[0-9]+')
+    success "Found spec file: $SPEC_FILE (version: $SPEC_VERSION)"
+fi
+
+# Check 2: AGENTS.md must use version-agnostic references
+if [ -f AGENTS.md ]; then
+    # Check for hardcoded version references (vX.X pattern in spec filename references)
+    HARDCODED_REFS=$(grep -nE 'specs/strava_dashboard_spec_v[0-9]+\.[0-9]+\.md' AGENTS.md || true)
+    
+    if [ -n "$HARDCODED_REFS" ]; then
+        error "AGENTS.md contains hardcoded spec version references:"
+        echo "$HARDCODED_REFS" | while read -r line; do
+            error "  $line"
+        done
+        error "Use 'specs/strava_dashboard_spec_*.md' instead"
+    else
+        success "AGENTS.md uses version-agnostic spec references"
+    fi
+    
+    # Check that AGENTS.md references the spec with wildcard
+    if grep -qE 'specs/strava_dashboard_spec_\*\.md' AGENTS.md; then
+        success "AGENTS.md contains wildcard spec reference"
+    else
+        warn "AGENTS.md does not contain wildcard spec reference pattern"
+    fi
+else
+    error "AGENTS.md not found"
+fi
+
+# Check 3: Verify constitution.md exists
+if [ -f specs/constitution.md ]; then
+    success "Constitution exists"
+else
+    error "Constitution not found: specs/constitution.md"
+fi
+
+# Check 4: Verify tasks.md exists
+if [ -f specs/tasks.md ]; then
+    success "Tasks file exists"
+else
+    error "Tasks file not found: specs/tasks.md"
+fi
+
+# Check 5: Verify ADRs directory exists and has ADR files
+if [ -d specs/adrs ]; then
+    ADR_COUNT=$(find specs/adrs -name 'ADR-*.md' | wc -l)
+    if [ "$ADR_COUNT" -gt 0 ]; then
+        success "Found $ADR_COUNT ADR(s) in specs/adrs/"
+    else
+        warn "No ADR files found in specs/adrs/"
+    fi
+else
+    error "ADRs directory not found: specs/adrs/"
+fi
+
+# Check 6: Verify spec file has expected sections
+if [ -n "${SPEC_FILE:-}" ]; then
+    REQUIRED_SECTIONS=("Overview" "Scope" "Non-Functional Requirements" "Domain Model" "Interfaces" "Business Rules" "Acceptance Criteria")
+    
+    for section in "${REQUIRED_SECTIONS[@]}"; do
+        if grep -q "^## .*$section" "$SPEC_FILE"; then
+            success "Spec contains '$section' section"
+        else
+            error "Spec missing '$section' section"
+        fi
+    done
+fi
+
+# Check 7: Verify README.md references specs
+if [ -f README.md ]; then
+    if grep -qE 'specs/' README.md; then
+        success "README.md references specs directory"
+    else
+        warn "README.md does not reference specs directory"
+    fi
+fi
+
+echo "=========================================="
+if [ $ERRORS -eq 0 ]; then
+    echo -e "${GREEN}All SDD checks passed!${NC}"
+    echo "=========================================="
+    exit 0
+else
+    echo -e "${RED}SDD checks failed with $ERRORS error(s)${NC}"
+    echo "=========================================="
+    exit 1
+fi

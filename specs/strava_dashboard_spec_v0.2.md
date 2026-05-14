@@ -1,8 +1,8 @@
 # Specification: Strava Training Dashboard
 
 **Status**: Draft  
-**Author**: User  
-**Date**: 2025-01-XX  
+**Author**: mandus  
+**Date**: 2026-05-14  
 **Version**: 0.2  
 
 ---
@@ -66,7 +66,7 @@
 
 ```
 ┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐
-│   StravaUser    │       │ TrainingActivity │       │    Statistic    │
+│   StravaUser    │       │ TrainingActivity│       │    Statistic    │
 ├─────────────────┤       ├─────────────────┤       ├─────────────────┤
 │ id (PK)         │◄──────│ id (PK)         │       │ id (PK)         │
 │ strava_id       │       │ user_id (FK)    │       │ user_id (FK)    │
@@ -74,12 +74,12 @@
 │ refresh_token   │       │ type            │       │ metric_name     │
 │ token_expires   │       │ name            │       │ value           │
 └─────────────────┘       │ distance        │       │ created_at      │
-                             │ moving_time     │       └─────────────────┘
-                             │ start_date      │
-                             │ average_speed   │
-                             │ elevation_gain  │
-                             │ is_deleted      │
-                             └─────────────────┘
+                          │ moving_time     │       └─────────────────┘
+                          │ start_date      │
+                          │ average_speed   │
+                          │ elevation_gain  │
+                          │ is_deleted      │
+                          └─────────────────┘
 ```
 
 **Activity Types**: Run, Ride, Swim, etc. (store all, but **only Run activities** are used for running-specific stats in v1)

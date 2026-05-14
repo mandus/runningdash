@@ -180,6 +180,33 @@ Spec Update → Task Breakdown → Implementation → Validation → Merge
 
 ---
 
+## 🔧 Setup
+
+### Install Pre-Commit Hook
+
+To enable automatic SDD consistency checks before each commit:
+
+```bash
+# Copy the hook to .git/hooks
+cp scripts/pre-commit .git/hooks/pre-commit
+
+# Make it executable
+chmod +x .git/hooks/pre-commit
+```
+
+This hook verifies:
+- Exactly one versioned spec file exists
+- AGENTS.md uses version-agnostic references (`specs/strava_dashboard_spec_*.md`)
+- All required SDD files exist (constitution, tasks, ADRs)
+- Spec contains all required sections
+
+### Test the Hook
+```bash
+.git/hooks/pre-commit
+```
+
+---
+
 ## 🤝 Stakeholders
 
 - **End User**: Runner who wants to track training stats
