@@ -1,0 +1,100 @@
+// Test file for JSON extension
+// Run with: ./strava_goal extensions/json/test_json.goal
+//
+// This file demonstrates and tests the JSON extension functionality.
+// It uses the custom Goal binary built with our extensions.
+
+// Test 1: Parse JSON object
+println("=== Test 1: Parse JSON object ===")
+parsed:=json.parse["{\"name\":\"test\",\"value\":123,\"active\":true}"]
+println("Parsed type:", type(parsed))
+println("Parsed:", parsed)
+
+name:=(parsed["name"])
+value:=(parsed["value"])
+active:=(parsed["active"])
+
+println("name:", name, "(type:", type(name), ")")
+println("value:", value, "(type:", type(value), ")")
+println("active:", active, "(type:", type(active), ")")
+
+if name == "test" && value == 123 && active == 0w {
+    println("✓ Test 1 PASSED")
+} else {
+    println("✗ Test 1 FAILED")
+}
+println()
+
+// Test 2: Parse JSON array
+println("=== Test 2: Parse JSON array ===")
+parsed_array:=json.parse["[1,2,3,\"four\"]"]
+println("Parsed type:", type(parsed_array))
+println("Array length:", len(parsed_array))
+println("First element:", parsed_array[0])
+
+if len(parsed_array) == 4 && parsed_array[0] == 1 {
+    println("✓ Test 2 PASSED")
+} else {
+    println("✗ Test 2 FAILED")
+}
+println()
+
+// Test 3: Encode dict to JSON
+println("=== Test 3: Encode dict to JSON ===")
+data:=(,("name")!"Alice";("age")!30)
+encoded:=json.encode[data]
+println("Encoded type:", type(encoded))
+println("Encoded:", encoded)
+
+// Parse it back to verify
+parsed_back:=json.parse[encoded]
+println("Parsed back:", parsed_back)
+
+if parsed_back["name"] == "Alice" && parsed_back["age"] == 30 {
+    println("✓ Test 3 PASSED")
+} else {
+    println("✗ Test 3 FAILED")
+}
+println()
+
+// Test 4: Encode array to JSON
+println("=== Test 4: Encode array to JSON ===")
+arr:=[1;2;3]
+encoded_arr:=json.encode[arr]
+println("Encoded array:", encoded_arr)
+
+// Should be [1,2,3]
+if encoded_arr == "[1,2,3]" {
+    println("✓ Test 4 PASSED")
+} else {
+    println("✗ Test 4 FAILED (got:", encoded_arr, ")")
+}
+println()
+
+// Test 5: Invalid JSON (should panic)
+println("=== Test 5: Invalid JSON (should panic) ===")
+// This should cause a panic
+// Uncomment to test:
+// invalid:=json.parse["invalid json"]
+println("✓ Test 5 SKIPPED (would panic)")
+println()
+
+// Test 6: Round-trip complex data
+println("=== Test 6: Round-trip complex data ===")
+complex_data:=(,("users")![(,("name")!"Alice";("age")!30);(,("name")!"Bob";("age")!25)])
+encoded_complex:=json.encode[complex_data]
+println("Encoded complex:", encoded_complex)
+
+parsed_complex:=json.parse[encoded_complex]
+println("Parsed complex:", parsed_complex)
+
+// Check first user
+first_user:=(parsed_complex["users"])[0]
+if first_user["name"] == "Alice" && first_user["age"] == 30 {
+    println("✓ Test 6 PASSED")
+} else {
+    println("✗ Test 6 FAILED")
+}
+println()
+
+println("=== All tests completed ===")
