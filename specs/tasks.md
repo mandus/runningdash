@@ -2,7 +2,7 @@
 
 **Project**: Strava Training Dashboard (Goal + Svelte)  
 **Spec Version**: v0.3  
-**Last Updated**: 2025-01-XX
+**Last Updated**: 2026-05-14
 
 ---
 
