@@ -1,0 +1,78 @@
+// Test file for SQLite extension
+// Run with: ./strava_goal extensions/sqlite/test_sqlite.goal
+//
+// This file demonstrates and tests the SQLite extension functionality.
+// It uses the custom Goal binary built with our extensions.
+
+// Test 1: Open and close connection
+println("=== Test 1: Open and close connection ===")
+conn_id:=sqlite.open[":memory:"]
+println("Connection ID:", conn_id)
+if conn_id > 0 {
+    println("✓ Test 1 PASSED")
+} else {
+    println("✗ Test 1 FAILED")
+}
+result:=sqlite.close[conn_id]
+println("Close result:", result)
+println()
+
+// Test 2: Create table and insert data
+println("=== Test 2: Create table and insert data ===")
+conn_id:=sqlite.open[":memory:"]
+// Create users table
+exec_result:=sqlite.exec[conn_id;"CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, email TEXT)";[]]
+println("Create table result:", exec_result)
+
+// Insert a user
+insert_result:=sqlite.exec[conn_id;"INSERT INTO users (name, email) VALUES (?, ?)";["Alice";"alice@example.com"]]
+println("Insert result (affected rows):", insert_result)
+
+// Insert another user
+insert_result2:=sqlite.exec[conn_id;"INSERT INTO users (name, email) VALUES (?, ?)";["Bob";"bob@example.com"]]
+println("Insert result 2 (affected rows):", insert_result2)
+
+if insert_result > 0 && insert_result2 > 0 {
+    println("✓ Test 2 PASSED")
+} else {
+    println("✗ Test 2 FAILED")
+}
+println()
+
+// Test 3: Query data
+println("=== Test 3: Query data ===")
+// Query all users
+rows:=sqlite.query[conn_id;"SELECT id, name, email FROM users ORDER BY id";[]]
+println("Number of rows:", len(rows))
+
+if len(rows) == 2 {
+    println("✓ Test 3 PASSED")
+    // Print first row
+    first_row:=rows[0]
+    println("First row:", first_row)
+} else {
+    println("✗ Test 3 FAILED (expected 2 rows, got", len(rows), ")")
+}
+println()
+
+// Test 4: Query with parameters
+println("=== Test 4: Query with parameters ===")
+// Query for specific user
+param_rows:=sqlite.query[conn_id;"SELECT name FROM users WHERE name = ?";["Alice"]]
+println("Rows matching 'Alice':", len(param_rows))
+
+if len(param_rows) == 1 {
+    println("✓ Test 4 PASSED")
+} else {
+    println("✗ Test 4 FAILED")
+}
+println()
+
+// Test 5: Close connection
+println("=== Test 5: Close connection ===")
+close_result:=sqlite.close[conn_id]
+println("Close result:", close_result)
+println("✓ Test 5 PASSED")
+println()
+
+println("=== All tests completed ===")

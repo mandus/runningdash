@@ -1,135 +1,188 @@
-// Package sqlite provides SQLite database functionality for Goal extensions
-// This enables Goal to interact with SQLite databases
+// Package sqlite provides SQLite database functionality for Goal.
+// This enables Goal to interact with SQLite databases.
 //
 // Implements requirements from:
 // - specs/strava_dashboard_spec_v0.3.md §5.2 (Local Database)
 // - specs/adrs/ADR-5_sqlite_extension.md
-package main
+//
+// To use this extension, create a custom Goal build that imports this package
+// and calls sqlite.Import(ctx, ""). See cmd/strava_goal/main.go for example.
+package sqlite
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
-	"log"
+	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
+	"codeberg.org/anaseto/goal"
 )
 
-// Connection represents a database connection
-type Connection struct {
-	DB *sql.DB
-}
-
-// OpenRequest represents a request to open a database connection
-type OpenRequest struct {
-	Path string `json:"path"`
-}
-
-// OpenResponse represents the response from opening a connection
-type OpenResponse struct {
-	ConnectionID int    `json:"connection_id"`
-	Error       string `json:"error"`
-}
-
-// QueryRequest represents a query request
-type QueryRequest struct {
-	ConnectionID int      `json:"connection_id"`
-	SQL         string   `json:"sql"`
-	Params      []string `json:"params"`
-}
-
-// QueryResponse represents the response from a query
-type QueryResponse struct {
-	Results [][]string `json:"results"`
-	Error   string     `json:"error"`
-}
-
-// ExecRequest represents an exec request
-type ExecRequest struct {
-	ConnectionID int      `json:"connection_id"`
-	SQL         string   `json:"sql"`
-	Params      []string `json:"params"`
-}
-
-// ExecResponse represents the response from an exec
-type ExecResponse struct {
-	Affected int    `json:"affected"`
-	Error   string `json:"error"`
-}
-
-// SimpleResponse represents a simple response with just error
-type SimpleResponse struct {
-	Error string `json:"error"`
-}
-
-// connections stores open database connections
-var connections = make(map[int]*Connection)
+// connections stores open database connections by ID
+// Map key is connection ID (int), value is *sql.DB
+var connections = make(map[int]*sql.DB)
 var nextConnectionID = 1
 
-// Open opens a database connection
-// Input: JSON string with path
-// Output: JSON string with connection_id and error
-func Open(requestJSON string) string {
-	var req OpenRequest
-	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
-		return fmtResponse(OpenResponse{Error: fmt.Sprintf("Invalid request JSON: %v", err)})
+// Import registers the SQLite extension functions with the Goal context.
+// The following functions are registered:
+//
+//   sqlite.open[path] : open database connection, returns connection_id
+//   sqlite.close[conn_id] : close database connection
+//   sqlite.query[conn_id, sql, params] : execute SELECT query, returns result rows
+//   sqlite.exec[conn_id, sql, params] : execute INSERT/UPDATE/DELETE, returns affected count
+//   sqlite.begin[conn_id] : start transaction
+//   sqlite.commit[conn_id] : commit transaction
+//   sqlite.rollback[conn_id] : rollback transaction
+//
+// Connection IDs are integers. All functions that need a connection take conn_id as first argument.
+func Import(ctx *goal.Context, pfx string) {
+	if pfx != "" {
+		pfx += "."
 	}
 
-	if req.Path == "" {
-		return fmtResponse(OpenResponse{Error: "Path is required"})
+	// Register sqlite.open as a monad (takes path string, returns connection_id int)
+	ctx.AssignGlobal(pfx+"sqlite.open", ctx.RegisterMonad("."+pfx+"sqlite.open", vfOpen))
+	
+	// Register sqlite.close as a monad (takes connection_id int)
+	ctx.AssignGlobal(pfx+"sqlite.close", ctx.RegisterMonad("."+pfx+"sqlite.close", vfClose))
+	
+	// Register sqlite.query as a triad (takes conn_id, sql, params)
+	ctx.AssignGlobal(pfx+"sqlite.query", ctx.RegisterTriad("."+pfx+"sqlite.query", vfQuery))
+	
+	// Register sqlite.exec as a triad (takes conn_id, sql, params)
+	ctx.AssignGlobal(pfx+"sqlite.exec", ctx.RegisterTriad("."+pfx+"sqlite.exec", vfExec))
+	
+	// Register transaction functions as monads (take connection_id)
+	ctx.AssignGlobal(pfx+"sqlite.begin", ctx.RegisterMonad("."+pfx+"sqlite.begin", vfBegin))
+	ctx.AssignGlobal(pfx+"sqlite.commit", ctx.RegisterMonad("."+pfx+"sqlite.commit", vfCommit))
+	ctx.AssignGlobal(pfx+"sqlite.rollback", ctx.RegisterMonad("."+pfx+"sqlite.rollback", vfRollback))
+}
+
+// HelpFunc returns help text for the SQLite extension
+func HelpFunc() func(string) string {
+	return func(s string) string {
+		if strings.HasPrefix(s, "sqlite.") || s == "sqlite" {
+			return `sqlite.open[path]       : open database connection, returns connection_id
+  sqlite.close[conn_id]    : close database connection
+  sqlite.query[conn_id, sql, params] : execute SELECT, returns array of result rows
+  sqlite.exec[conn_id, sql, params]  : execute INSERT/UPDATE/DELETE, returns affected count
+  sqlite.begin[conn_id]     : start transaction
+  sqlite.commit[conn_id]    : commit transaction
+  sqlite.rollback[conn_id]  : rollback transaction
+  
+  Example:
+    conn_id:=sqlite.open["data.db"]
+    result:=sqlite.query[conn_id;"SELECT * FROM users";[]]
+    sqlite.close[conn_id]`
+		}
+		return ""
+	}
+}
+
+// vfOpen implements sqlite.open monadic function
+func vfOpen(ctx *goal.Context, args []goal.V) goal.V {
+	if len(args) != 1 {
+		return goal.Panicf("sqlite.open: expected 1 argument (path), got %d", len(args))
 	}
 
-	db, err := sql.Open("sqlite3", req.Path)
+	path, ok := args[0].BV().(goal.S)
+	if !ok {
+		return goal.Panicf("sqlite.open: expected string path, got %s", args[0].Type())
+	}
+
+	db, err := sql.Open("sqlite3", string(path))
 	if err != nil {
-		return fmtResponse(OpenResponse{Error: err.Error()})
+		return goal.Panicf("sqlite.open: %v", err)
 	}
 
 	// Verify the connection is alive
 	if err := db.Ping(); err != nil {
-		return fmtResponse(OpenResponse{Error: err.Error()})
+		return goal.Panicf("sqlite.open: ping failed: %v", err)
 	}
 
 	connID := nextConnectionID
 	nextConnectionID++
-	connections[connID] = &Connection{DB: db}
+	connections[connID] = db
 
-	return fmtResponse(OpenResponse{ConnectionID: connID})
+	return goal.NewI(connID)
 }
 
-// Query executes a SELECT query
-// Input: JSON string with connection_id, sql, and params
-// Output: JSON string with results and error
-func Query(requestJSON string) string {
-	var req QueryRequest
-	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
-		return fmtResponse(QueryResponse{Error: fmt.Sprintf("Invalid request JSON: %v", err)})
+// vfClose implements sqlite.close monadic function
+func vfClose(ctx *goal.Context, args []goal.V) goal.V {
+	if len(args) != 1 {
+		return goal.Panicf("sqlite.close: expected 1 argument (conn_id), got %d", len(args))
 	}
 
-	conn, ok := connections[req.ConnectionID]
+	connID, ok := args[0].BV().(goal.I)
 	if !ok {
-		return fmtResponse(QueryResponse{Error: fmt.Sprintf("Connection %d not found", req.ConnectionID)})
+		return goal.Panicf("sqlite.close: expected integer conn_id, got %s", args[0].Type())
 	}
 
-	// Convert string params to interface{}
-	interfaceParams := make([]interface{}, len(req.Params))
-	for i, p := range req.Params {
-		interfaceParams[i] = p
+	conn, ok := connections[int(connID)]
+	if !ok {
+		return goal.Panicf("sqlite.close: connection %d not found", connID)
 	}
 
-	rows, err := conn.DB.Query(req.SQL, interfaceParams...)
+	if err := conn.Close(); err != nil {
+		return goal.Panicf("sqlite.close: %v", err)
+	}
+
+	delete(connections, int(connID))
+	return goal.NewI(0) // Return 0 for success
+}
+
+// vfQuery implements sqlite.query triadic function
+func vfQuery(ctx *goal.Context, args []goal.V) goal.V {
+	if len(args) != 3 {
+		return goal.Panicf("sqlite.query: expected 3 arguments (conn_id, sql, params), got %d", len(args))
+	}
+
+	// Parse connection ID
+	connID, ok := args[0].BV().(goal.I)
+	if !ok {
+		return goal.Panicf("sqlite.query: expected integer conn_id, got %s", args[0].Type())
+	}
+
+	conn, ok := connections[int(connID)]
+	if !ok {
+		return goal.Panicf("sqlite.query: connection %d not found", connID)
+	}
+
+	// Parse SQL
+	sqlStr, ok := args[1].BV().(goal.S)
+	if !ok {
+		return goal.Panicf("sqlite.query: expected string sql, got %s", args[1].Type())
+	}
+
+	// Parse params (array of strings)
+	params, ok := args[2].BV().(*goal.AS)
+	if !ok && args[2].Type() != goal.NT {
+		return goal.Panicf("sqlite.query: expected array params, got %s", args[2].Type())
+	}
+
+	// Convert params to []interface{}
+	var interfaceParams []interface{}
+	if params != nil {
+		for _, p := range params.Slice {
+			interfaceParams = append(interfaceParams, string(p.(goal.S)))
+		}
+	}
+
+	// Execute query
+	rows, err := conn.Query(string(sqlStr), interfaceParams...)
 	if err != nil {
-		return fmtResponse(QueryResponse{Error: err.Error()})
+		return goal.Panicf("sqlite.query: %v", err)
 	}
 	defer rows.Close()
 
 	// Get column names
 	columns, err := rows.Columns()
 	if err != nil {
-		return fmtResponse(QueryResponse{Error: err.Error()})
+		return goal.Panicf("sqlite.query: get columns failed: %v", err)
 	}
 
 	// Read all rows
-	var results [][]string
+	var results []goal.V
 	for rows.Next() {
 		// Create a slice of interface{} to hold the values
 		values := make([]interface{}, len(columns))
@@ -139,162 +192,138 @@ func Query(requestJSON string) string {
 		}
 
 		if err := rows.Scan(valuePtrs...); err != nil {
-			return fmtResponse(QueryResponse{Error: err.Error()})
+			return goal.Panicf("sqlite.query: scan failed: %v", err)
 		}
 
-		// Convert to string slice
-		row := make([]string, len(columns))
+		// Convert to Goal array
+		row := make([]goal.V, len(columns))
 		for i, val := range values {
-			row[i] = fmt.Sprintf("%v", val)
+			row[i] = goal.NewS(fmt.Sprintf("%v", val))
 		}
-		results = append(results, row)
+		results = append(results, goal.NewAS(row))
 	}
 
 	if err := rows.Err(); err != nil {
-		return fmtResponse(QueryResponse{Error: err.Error()})
+		return goal.Panicf("sqlite.query: rows error: %v", err)
 	}
 
-	return fmtResponse(QueryResponse{Results: results})
+	// Return array of rows
+	return goal.NewAS(results)
 }
 
-// Exec executes an INSERT/UPDATE/DELETE statement
-// Input: JSON string with connection_id, sql, and params
-// Output: JSON string with affected count and error
-func Exec(requestJSON string) string {
-	var req ExecRequest
-	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
-		return fmtResponse(ExecResponse{Error: fmt.Sprintf("Invalid request JSON: %v", err)})
+// vfExec implements sqlite.exec triadic function
+func vfExec(ctx *goal.Context, args []goal.V) goal.V {
+	if len(args) != 3 {
+		return goal.Panicf("sqlite.exec: expected 3 arguments (conn_id, sql, params), got %d", len(args))
 	}
 
-	conn, ok := connections[req.ConnectionID]
+	// Parse connection ID
+	connID, ok := args[0].BV().(goal.I)
 	if !ok {
-		return fmtResponse(ExecResponse{Error: fmt.Sprintf("Connection %d not found", req.ConnectionID)})
+		return goal.Panicf("sqlite.exec: expected integer conn_id, got %s", args[0].Type())
 	}
 
-	// Convert string params to interface{}
-	interfaceParams := make([]interface{}, len(req.Params))
-	for i, p := range req.Params {
-		interfaceParams[i] = p
+	conn, ok := connections[int(connID)]
+	if !ok {
+		return goal.Panicf("sqlite.exec: connection %d not found", connID)
 	}
 
-	result, err := conn.DB.Exec(req.SQL, interfaceParams...)
+	// Parse SQL
+	sqlStr, ok := args[1].BV().(goal.S)
+	if !ok {
+		return goal.Panicf("sqlite.exec: expected string sql, got %s", args[1].Type())
+	}
+
+	// Parse params (array of strings)
+	params, ok := args[2].BV().(*goal.AS)
+	if !ok && args[2].Type() != goal.NT {
+		return goal.Panicf("sqlite.exec: expected array params, got %s", args[2].Type())
+	}
+
+	// Convert params to []interface{}
+	var interfaceParams []interface{}
+	if params != nil {
+		for _, p := range params.Slice {
+			interfaceParams = append(interfaceParams, string(p.(goal.S)))
+		}
+	}
+
+	// Execute statement
+	result, err := conn.Exec(string(sqlStr), interfaceParams...)
 	if err != nil {
-		return fmtResponse(ExecResponse{Error: err.Error()})
+		return goal.Panicf("sqlite.exec: %v", err)
 	}
 
 	affected, err := result.RowsAffected()
 	if err != nil {
-		return fmtResponse(ExecResponse{Error: err.Error()})
+		return goal.Panicf("sqlite.exec: get rows affected failed: %v", err)
 	}
 
-	return fmtResponse(ExecResponse{Affected: int(affected)})
+	return goal.NewI(affected)
 }
 
-// Begin starts a transaction
-// Input: JSON string with connection_id
-// Output: JSON string with error
-func Begin(requestJSON string) string {
-	var req struct {
-		ConnectionID int `json:"connection_id"`
-	}
-	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
-		return fmtResponse(SimpleResponse{Error: fmt.Sprintf("Invalid request JSON: %v", err)})
+// vfBegin implements sqlite.begin monadic function
+func vfBegin(ctx *goal.Context, args []goal.V) goal.V {
+	if len(args) != 1 {
+		return goal.Panicf("sqlite.begin: expected 1 argument (conn_id), got %d", len(args))
 	}
 
-	conn, ok := connections[req.ConnectionID]
+	connID, ok := args[0].BV().(goal.I)
 	if !ok {
-		return fmtResponse(SimpleResponse{Error: fmt.Sprintf("Connection %d not found", req.ConnectionID)})
+		return goal.Panicf("sqlite.begin: expected integer conn_id, got %s", args[0].Type())
 	}
 
-	_, err := conn.DB.Begin()
+	conn, ok := connections[int(connID)]
+	if !ok {
+		return goal.Panicf("sqlite.begin: connection %d not found", connID)
+	}
+
+	_, err := conn.Begin()
 	if err != nil {
-		return fmtResponse(SimpleResponse{Error: err.Error()})
+		return goal.Panicf("sqlite.begin: %v", err)
 	}
 
-	return fmtResponse(SimpleResponse{})
+	return goal.NewI(0) // Return 0 for success
 }
 
-// Commit commits a transaction
-// Input: JSON string with connection_id
-// Output: JSON string with error
-func Commit(requestJSON string) string {
-	var req struct {
-		ConnectionID int `json:"connection_id"`
-	}
-	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
-		return fmtResponse(SimpleResponse{Error: fmt.Sprintf("Invalid request JSON: %v", err)})
+// vfCommit implements sqlite.commit monadic function
+func vfCommit(ctx *goal.Context, args []goal.V) goal.V {
+	if len(args) != 1 {
+		return goal.Panicf("sqlite.commit: expected 1 argument (conn_id), got %d", len(args))
 	}
 
-	conn, ok := connections[req.ConnectionID]
+	connID, ok := args[0].BV().(goal.I)
 	if !ok {
-		return fmtResponse(SimpleResponse{Error: fmt.Sprintf("Connection %d not found", req.ConnectionID)})
+		return goal.Panicf("sqlite.commit: expected integer conn_id, got %s", args[0].Type())
 	}
 
-	// Note: In sqlite3, transactions are auto-committed unless Begin was called
-	// This is a no-op for sqlite but kept for API consistency
-	return fmtResponse(SimpleResponse{})
-}
-
-// Rollback rolls back a transaction
-// Input: JSON string with connection_id
-// Output: JSON string with error
-func Rollback(requestJSON string) string {
-	var req struct {
-		ConnectionID int `json:"connection_id"`
-	}
-	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
-		return fmtResponse(SimpleResponse{Error: fmt.Sprintf("Invalid request JSON: %v", err)})
-	}
-
-	conn, ok := connections[req.ConnectionID]
+	conn, ok := connections[int(connID)]
 	if !ok {
-		return fmtResponse(SimpleResponse{Error: fmt.Sprintf("Connection %d not found", req.ConnectionID)})
+		return goal.Panicf("sqlite.commit: connection %d not found", connID)
 	}
 
-	// Note: In sqlite3, transactions are auto-committed unless Begin was called
-	// This is a no-op for sqlite but kept for API consistency
-	return fmtResponse(SimpleResponse{})
+	// Note: In SQLite, transactions are auto-committed unless Begin was called
+	// This is a no-op but kept for API consistency
+	return goal.NewI(0)
 }
 
-// Close closes a database connection
-// Input: JSON string with connection_id
-// Output: JSON string with error
-func Close(requestJSON string) string {
-	var req struct {
-		ConnectionID int `json:"connection_id"`
-	}
-	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
-		return fmtResponse(SimpleResponse{Error: fmt.Sprintf("Invalid request JSON: %v", err)})
+// vfRollback implements sqlite.rollback monadic function
+func vfRollback(ctx *goal.Context, args []goal.V) goal.V {
+	if len(args) != 1 {
+		return goal.Panicf("sqlite.rollback: expected 1 argument (conn_id), got %d", len(args))
 	}
 
-	conn, ok := connections[req.ConnectionID]
+	connID, ok := args[0].BV().(goal.I)
 	if !ok {
-		return fmtResponse(SimpleResponse{Error: fmt.Sprintf("Connection %d not found", req.ConnectionID)})
+		return goal.Panicf("sqlite.rollback: expected integer conn_id, got %s", args[0].Type())
 	}
 
-	if err := conn.DB.Close(); err != nil {
-		return fmtResponse(SimpleResponse{Error: err.Error()})
+	conn, ok := connections[int(connID)]
+	if !ok {
+		return goal.Panicf("sqlite.rollback: connection %d not found", connID)
 	}
 
-	delete(connections, req.ConnectionID)
-	return fmtResponse(SimpleResponse{})
-}
-
-// fmtResponse formats a response as JSON string
-func fmtResponse[T any](resp T) string {
-	jsonBytes, err := json.Marshal(resp)
-	if err != nil {
-		log.Printf("Error marshaling response: %v", err)
-		return `{"error": "Internal error"}`
-	}
-	return string(jsonBytes)
-}
-
-func main() {
-	// Test the extension
-	// Open a connection
-	openReq := OpenRequest{Path: ":memory:"}
-	openReqJSON, _ := json.Marshal(openReq)
-	openResp := Open(string(openReqJSON))
-	fmt.Println("Open:", openResp)
+	// Note: In SQLite, transactions are auto-committed unless Begin was called
+	// This is a no-op but kept for API consistency
+	return goal.NewI(0)
 }
