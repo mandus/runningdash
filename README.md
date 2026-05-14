@@ -182,6 +182,54 @@ Spec Update → Task Breakdown → Implementation → Validation → Merge
 
 ## 🔧 Setup
 
+### Prerequisites
+
+#### 1. Install Go (1.20+)
+Goal extensions are written in Go. Install Go first:
+
+**Linux (Debian/Ubuntu):**
+```bash
+sudo apt update && sudo apt install -y golang-go
+```
+
+**Linux (Alpine):**
+```bash
+sudo apk add go
+```
+
+**Mac:**
+```bash
+brew install go
+```
+
+**Verify:**
+```bash
+go version
+```
+
+#### 2. Install Goal
+Clone and install Goal from source:
+
+```bash
+# Clone Goal repository
+git clone https://codeberg.org/anaseto/goal.git
+cd goal
+
+# Build and install with full tags (required for extensions)
+go build --tags full ./cmd/goal
+go install --tags full ./cmd/goal
+
+# Verify installation
+goal version
+```
+
+**Note:** The `--tags full` flag enables all features needed for extension development.
+
+#### 3. Install SQLite Driver (for Goal extensions)
+```bash
+go get github.com/mattn/go-sqlite3
+```
+
 ### Install Pre-Commit Hook
 
 To enable automatic SDD consistency checks before each commit:
