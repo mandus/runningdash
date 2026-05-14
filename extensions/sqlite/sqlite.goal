@@ -5,138 +5,35 @@
 // - specs/strava_dashboard_spec_v0.3.md §5.2 (Local Database)
 // - specs/adrs/ADR-5_sqlite_extension.md
 //
-// Usage:
-//   conn_id := db.open('{"path": "strava.db"}')
-//   parsed := json.parse(conn_id)
-//   if parsed["error"] != "" { handle error }
-//   
-//   result := db.query('{"connection_id": 1, "sql": "SELECT * FROM activities", "params": []}')
-//   data := json.parse(result)
+// This file declares the Goal interface to the Go SQLite extension.
+// The actual implementation is in sqlite.go (Go package).
 
 package db
 
-// Open opens a database connection
-// 
-// Parameters:
-//   requestJSON - JSON string containing:
-//     - path: string (required) - path to SQLite database file
-//
-// Returns:
-//   JSON string containing:
-//     - connection_id: int - ID to use for subsequent operations
-//     - error: string - error message, empty if success
-//
-// Example:
-//   conn := db.open('{"path": "strava.db"}')
-//   parsed := json.parse(conn)
-//   if parsed["error"] != "" { return }
-//   conn_id := parsed["connection_id"]
-func open(requestJSON string) string {
-	// Implemented in sqlite.go (Go)
-}
+// open opens a database connection
+// Takes JSON with path, returns JSON with connection_id and error
+func open(request string) string
 
-// Query executes a SELECT query and returns results
-// 
-// Parameters:
-//   requestJSON - JSON string containing:
-//     - connection_id: int (required) - connection ID from open()
-//     - sql: string (required) - SQL query to execute
-//     - params: []string (optional) - query parameters
-//
-// Returns:
-//   JSON string containing:
-//     - results: [][]string - array of rows, each row is array of column values as strings
-//     - error: string - error message, empty if success
-//
-// Example:
-//   result := db.query('{"connection_id": 1, "sql": "SELECT * FROM activities WHERE type = ?", "params": ["Run"]}')
-//   parsed := json.parse(result)
-//   for row in parsed["results"] { ... }
-func query(requestJSON string) string {
-	// Implemented in sqlite.go (Go)
-}
+// query executes a SELECT query
+// Takes JSON with connection_id, sql, params, returns JSON with results and error
+func query(request string) string
 
-// Exec executes an INSERT, UPDATE, or DELETE statement
-// 
-// Parameters:
-//   requestJSON - JSON string containing:
-//     - connection_id: int (required) - connection ID from open()
-//     - sql: string (required) - SQL statement to execute
-//     - params: []string (optional) - statement parameters
-//
-// Returns:
-//   JSON string containing:
-//     - affected: int - number of rows affected
-//     - error: string - error message, empty if success
-//
-// Example:
-//   result := db.exec('{"connection_id": 1, "sql": "INSERT INTO users (id, name) VALUES (?, ?)", "params": ["1", "test"]}')
-//   parsed := json.parse(result)
-//   if parsed["error"] != "" { handle error }
-func exec(requestJSON string) string {
-	// Implemented in sqlite.go (Go)
-}
+// exec executes INSERT/UPDATE/DELETE
+// Takes JSON with connection_id, sql, params, returns JSON with affected and error
+func exec(request string) string
 
-// Begin starts a transaction
-// 
-// Parameters:
-//   requestJSON - JSON string containing:
-//     - connection_id: int (required) - connection ID from open()
-//
-// Returns:
-//   JSON string containing:
-//     - error: string - error message, empty if success
-//
-// Example:
-//   db.begin('{"connection_id": 1}')
-func begin(requestJSON string) string {
-	// Implemented in sqlite.go (Go)
-}
+// begin starts a transaction
+// Takes JSON with connection_id, returns JSON with error
+func begin(request string) string
 
-// Commit commits a transaction
-// 
-// Parameters:
-//   requestJSON - JSON string containing:
-//     - connection_id: int (required) - connection ID from open()
-//
-// Returns:
-//   JSON string containing:
-//     - error: string - error message, empty if success
-//
-// Example:
-//   db.commit('{"connection_id": 1}')
-func commit(requestJSON string) string {
-	// Implemented in sqlite.go (Go)
-}
+// commit commits a transaction
+// Takes JSON with connection_id, returns JSON with error
+func commit(request string) string
 
-// Rollback rolls back a transaction
-// 
-// Parameters:
-//   requestJSON - JSON string containing:
-//     - connection_id: int (required) - connection ID from open()
-//
-// Returns:
-//   JSON string containing:
-//     - error: string - error message, empty if success
-//
-// Example:
-//   db.rollback('{"connection_id": 1}')
-func rollback(requestJSON string) string {
-	// Implemented in sqlite.go (Go)
-}
+// rollback rolls back a transaction
+// Takes JSON with connection_id, returns JSON with error
+func rollback(request string) string
 
-// Close closes a database connection
-// 
-// Parameters:
-//   requestJSON - JSON string containing:
-//     - connection_id: int (required) - connection ID from open()
-//
-// Returns:
-//   JSON string containing:
-//     - error: string - error message, empty if success
-//
-// Example:
-//   db.close('{"connection_id": 1}')
-func close(requestJSON string) string {
-	// Implemented in sqlite.go (Go)
-}
+// close closes a database connection
+// Takes JSON with connection_id, returns JSON with error
+func close(request string) string
