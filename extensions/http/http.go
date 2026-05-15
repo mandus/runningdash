@@ -6,190 +6,169 @@
 // - specs/adrs/ADR-2_http_extension.md
 //
 // To use this extension, create a custom Goal build that imports this package
-// and calls http.Import(ctx, ""). See cmd/strava_goal/main.go for example.
+// and calls http.Import(ctx, ""). See cmd/strava_goal/main.go for an example.
 package http
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
+	nethttp "net/http"
+	"strings"
 	"time"
 
 	"codeberg.org/anaseto/goal"
 )
 
-// Default timeout for HTTP requests
+// Default timeout for HTTP requests.
 const defaultTimeout = 30 * time.Second
 
-// Default retry configuration
+// Default retry configuration.
 const (
 	maxRetries = 3
 	retryDelay = 1 * time.Second
 )
 
-// client is the HTTP client with timeout
-var client = &http.Client{
+// client is the HTTP client with timeout.
+var client = &nethttp.Client{
 	Timeout: defaultTimeout,
 }
 
-// Request represents an HTTP request structure
-type Request struct {
-	Method  string            `json:"method"`
-	URL     string            `json:"url"`
-	Headers map[string]string `json:"headers"`
-	Body    string            `json:"body"`
+// request represents an HTTP request structure (internal).
+type request struct {
+	Method  string
+	URL     string
+	Headers map[string]string
+	Body    string
 }
 
-// Response represents an HTTP response structure
-type Response struct {
-	Status  int    `json:"status"`
-	Body    string `json:"body"`
-	Error   string `json:"error"`
+// response represents an HTTP response structure (internal).
+type response struct {
+	Status int
+	Body   string
+	Error  string
 }
 
 // Import registers the HTTP extension functions with the Goal context.
+//
 // The following functions are registered:
 //
-//   http.get[request] : make HTTP GET request, returns response dict
-//   http.post[request] : make HTTP POST request, returns response dict
+//	http.get[request]  : make HTTP GET request, returns response dict
+//	http.post[request] : make HTTP POST request, returns response dict
 //
-// Where request is a dict with keys: url, headers (optional), body (optional)
-// Response is a dict with keys: status, body, error
+// Where request is a dict with keys: url (required), method (optional),
+// headers (optional dict of string->string), body (optional string).
+//
+// Response is a dict with keys:
+//
+//	status (int)    : HTTP status code (0 on transport error)
+//	body   (string) : response body
+//	error  (string) : error message, empty on success
+//
+// The pfx argument is an optional prefix prepended to the registered names
+// (e.g., pfx="x" registers "x.http.get"). Pass "" for the default names.
 func Import(ctx *goal.Context, pfx string) {
+	ctx.RegisterExtension("net/http", "")
 	if pfx != "" {
 		pfx += "."
 	}
 
-	// Register http.get as a monad (takes one argument: request dict)
 	ctx.AssignGlobal(pfx+"http.get", ctx.RegisterMonad("."+pfx+"http.get", vfGet))
-	
-	// Register http.post as a monad (takes one argument: request dict)
 	ctx.AssignGlobal(pfx+"http.post", ctx.RegisterMonad("."+pfx+"http.post", vfPost))
 }
 
-// HelpFunc returns help text for the HTTP extension
+// HelpFunc returns a help function suitable for help.Wrap.
 func HelpFunc() func(string) string {
 	return func(s string) string {
-		if s == "http" || s == "http.get" || s == "http.post" {
-			return `http.get[request]  : make HTTP GET request (request is dict with url, headers, body)
-  http.post[request] : make HTTP POST request (request is dict with url, headers, body)
-  
-  Request dict keys: url (string, required), headers (dict, optional), body (string, optional)
-  Response dict keys: status (int), body (string), error (string)
-  
-  Example:
-    request:=(,("url")!"https://api.example.com/data";("headers")!((,"Authorization")!"Bearer token"))
-    response:=http.get[request]
-    status:=(response["status"])
-    body:=(response["body"])
-    error:=(response["error"])`
+		if strings.HasPrefix(s, "http.") || s == "http" || s == "net/http" {
+			return strings.TrimSpace(`
+http.get[d]   perform HTTP GET; d is a dict with keys url, headers, body
+http.post[d]  perform HTTP POST; d is a dict with keys url, headers, body
+
+  Response dict keys:
+    status (int)    HTTP status code, 0 on transport error
+    body   (string) response body
+    error  (string) error message, empty on success`)
 		}
 		return ""
 	}
 }
 
-// vfGet implements the http.get monadic function
-func vfGet(ctx *goal.Context, args []goal.V) goal.V {
+// vfGet implements the http.get monadic function.
+func vfGet(_ *goal.Context, args []goal.V) goal.V {
 	if len(args) != 1 {
-		return goal.Panicf("http.get: expected 1 argument, got %d", len(args))
+		return goal.Panicf("http.get : expected 1 argument, got %d", len(args))
 	}
-
-	req, ok := args[0].BV().(goal.D)
-	if !ok {
-		return goal.Panicf("http.get: expected dict argument, got %s", args[0].Type())
-	}
-
-	// Parse request dict
-	request, err := parseRequest(req)
-	if err != nil {
-		return goal.Panicf("http.get: %v", err)
-	}
-
-	// Set default method
-	if request.Method == "" {
-		request.Method = "GET"
-	}
-
-	// Execute request with retries
-	resp, err := doRequest(request)
-	if err != nil {
-		return makeResponse(0, "", err.Error())
-	}
-
-	return makeResponse(resp.Status, resp.Body, resp.Error)
+	return doVerb("http.get", "GET", args[0])
 }
 
-// vfPost implements the http.post monadic function
-func vfPost(ctx *goal.Context, args []goal.V) goal.V {
+// vfPost implements the http.post monadic function.
+func vfPost(_ *goal.Context, args []goal.V) goal.V {
 	if len(args) != 1 {
-		return goal.Panicf("http.post: expected 1 argument, got %d", len(args))
+		return goal.Panicf("http.post : expected 1 argument, got %d", len(args))
 	}
-
-	req, ok := args[0].BV().(goal.D)
-	if !ok {
-		return goal.Panicf("http.post: expected dict argument, got %s", args[0].Type())
-	}
-
-	// Parse request dict
-	request, err := parseRequest(req)
-	if err != nil {
-		return goal.Panicf("http.post: %v", err)
-	}
-
-	// Set default method
-	if request.Method == "" {
-		request.Method = "POST"
-	}
-
-	// Execute request with retries
-	resp, err := doRequest(request)
-	if err != nil {
-		return makeResponse(0, "", err.Error())
-	}
-
-	return makeResponse(resp.Status, resp.Body, resp.Error)
+	return doVerb("http.post", "POST", args[0])
 }
 
-// parseRequest converts a Goal dict to a Request struct
-func parseRequest(d goal.D) (*Request, error) {
-	req := &Request{}
-	
-	// Get URL (required)
-	urlVal, ok := d.Get("url")
+// doVerb is the shared implementation for http.get and http.post.
+func doVerb(verbName, defaultMethod string, arg goal.V) goal.V {
+	d, ok := arg.BV().(*goal.D)
+	if !ok {
+		return goal.Panicf("%s : expected dict argument, got %q", verbName, arg.Type())
+	}
+
+	req, err := parseRequest(d)
+	if err != nil {
+		return goal.Panicf("%s : %v", verbName, err)
+	}
+	if req.Method == "" {
+		req.Method = defaultMethod
+	}
+
+	resp := doRequest(req)
+	return makeResponse(resp)
+}
+
+// parseRequest converts a Goal dict to a request struct.
+func parseRequest(d *goal.D) (*request, error) {
+	req := &request{}
+
+	// URL (required).
+	urlVal, ok := d.GetS("url")
 	if !ok {
 		return nil, fmt.Errorf("missing required field: url")
 	}
 	urlStr, ok := urlVal.BV().(goal.S)
 	if !ok {
-		return nil, fmt.Errorf("url must be a string, got %s", urlVal.Type())
+		return nil, fmt.Errorf("url must be a string, got %q", urlVal.Type())
 	}
 	req.URL = string(urlStr)
 
-	// Get method (optional)
-	if methodVal, ok := d.Get("method"); ok {
+	// Method (optional).
+	if methodVal, ok := d.GetS("method"); ok {
 		if methodStr, ok := methodVal.BV().(goal.S); ok {
 			req.Method = string(methodStr)
 		}
 	}
 
-	// Get headers (optional)
-	if headersVal, ok := d.Get("headers"); ok {
-		if headersDict, ok := headersVal.BV().(goal.D); ok {
-			req.Headers = make(map[string]string)
-			for _, k := range headersDict.Keys() {
-				if v, ok := headersDict.Get(k); ok {
-					if vStr, ok := v.BV().(goal.S); ok {
-						req.Headers[k] = string(vStr)
-					}
+	// Headers (optional dict).
+	if headersVal, ok := d.GetS("headers"); ok {
+		if hd, ok := headersVal.BV().(*goal.D); ok {
+			keys := hd.KeyArray()
+			vals := hd.ValueArray()
+			req.Headers = make(map[string]string, keys.Len())
+			for i := 0; i < keys.Len(); i++ {
+				kS, kok := keys.At(i).BV().(goal.S)
+				vS, vok := vals.At(i).BV().(goal.S)
+				if kok && vok {
+					req.Headers[string(kS)] = string(vS)
 				}
 			}
 		}
 	}
 
-	// Get body (optional)
-	if bodyVal, ok := d.Get("body"); ok {
+	// Body (optional string).
+	if bodyVal, ok := d.GetS("body"); ok {
 		if bodyStr, ok := bodyVal.BV().(goal.S); ok {
 			req.Body = string(bodyStr)
 		}
@@ -198,10 +177,11 @@ func parseRequest(d goal.D) (*Request, error) {
 	return req, nil
 }
 
-// doRequest executes the HTTP request with retry logic
-func doRequest(req *Request) (*Response, error) {
+// doRequest executes the HTTP request with retry logic. It always returns a
+// non-nil response; transport failures are reported via response.Error with
+// status 0.
+func doRequest(req *request) *response {
 	var lastErr error
-	var lastResp *http.Response
 
 	for i := 0; i < maxRetries; i++ {
 		var bodyReader io.Reader
@@ -209,21 +189,19 @@ func doRequest(req *Request) (*Response, error) {
 			bodyReader = bytes.NewBufferString(req.Body)
 		}
 
-		httpReq, err := http.NewRequest(req.Method, req.URL, bodyReader)
+		httpReq, err := nethttp.NewRequest(req.Method, req.URL, bodyReader)
 		if err != nil {
-			lastErr = err
-			continue
+			// Bad request construction is not retryable.
+			return &response{Status: 0, Error: err.Error()}
 		}
 
-		// Add headers
 		for key, value := range req.Headers {
 			httpReq.Header.Set(key, value)
 		}
 
-		lastResp, err = client.Do(httpReq)
+		httpResp, err := client.Do(httpReq)
 		if err != nil {
 			lastErr = err
-			// Check if we should retry
 			if i < maxRetries-1 {
 				time.Sleep(retryDelay * time.Duration(i+1))
 				continue
@@ -231,24 +209,29 @@ func doRequest(req *Request) (*Response, error) {
 			break
 		}
 
-		// Success
-		body, _ := io.ReadAll(lastResp.Body)
-		lastResp.Body.Close()
+		body, _ := io.ReadAll(httpResp.Body)
+		httpResp.Body.Close()
 
-		return &Response{
-			Status: lastResp.StatusCode,
+		return &response{
+			Status: httpResp.StatusCode,
 			Body:   string(body),
-		}, nil
+		}
 	}
 
-	return nil, lastErr
+	msg := "unknown error"
+	if lastErr != nil {
+		msg = lastErr.Error()
+	}
+	return &response{Status: 0, Error: msg}
 }
 
-// makeResponse creates a Goal dict response
-func makeResponse(status int, body, err string) goal.V {
-	result := goal.NewD(
-		goal.NewAS([]string{"status", "body", "error"}),
-		goal.NewAS([]string{fmt.Sprintf("%d", status), body, err}),
-	)
-	return result
+// makeResponse creates a Goal dict response with mixed-typed values.
+func makeResponse(r *response) goal.V {
+	keys := goal.NewAS([]string{"status", "body", "error"})
+	values := goal.NewAV([]goal.V{
+		goal.NewI(int64(r.Status)),
+		goal.NewS(r.Body),
+		goal.NewS(r.Error),
+	})
+	return goal.NewD(keys, values)
 }

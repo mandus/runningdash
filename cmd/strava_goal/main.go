@@ -1,18 +1,18 @@
-// Custom Goal interpreter for Strava Training Dashboard
-// This builds Goal with all required extensions for the project
+// Custom Goal interpreter for the Strava Training Dashboard.
 //
-// To build:
-//   cd cmd/strava_goal
-//   go mod init github.com/mandus/runningdash/cmd/strava_goal
-//   go mod edit -replace codeberg.org/anaseto/goal=../goal
-//   go mod tidy
-//   go build
+// This builds a Goal binary with the project's custom extensions linked in.
+// As of EXT-1, only the http extension is registered. Additional extensions
+// (json — EXT-3, sqlite — EXT-2, httpserver — EXT-4) will be wired in here
+// as those tasks complete.
 //
-// The resulting binary will have all extensions loaded.
+// To build (from the repository root):
+//
+//	go build -o strava_goal ./cmd/strava_goal
 //
 // Usage:
-//   ./strava_goal [script.goal]  # Run a Goal script
-//   ./strava_goal              # Start REPL
+//
+//	./strava_goal script.goal   # run a Goal script
+//	./strava_goal               # start REPL
 package main
 
 import (
@@ -22,34 +22,39 @@ import (
 	"codeberg.org/anaseto/goal/cmd"
 	"codeberg.org/anaseto/goal/help"
 
-	// Import our custom extensions
+	// Standard Goal extensions (same set as Goal's "full" build).
+	"codeberg.org/anaseto/goal/archive/zip"
+	"codeberg.org/anaseto/goal/encoding/base64"
+	"codeberg.org/anaseto/goal/math"
+	gos "codeberg.org/anaseto/goal/os"
+
+	// Project extensions.
 	"github.com/mandus/runningdash/extensions/http"
-	"github.com/mandus/runningdash/extensions/json"
-	"github.com/mandus/runningdash/extensions/sqlite"
 )
 
 func main() {
 	ctx := goal.NewContext()
 	ctx.Log = os.Stderr
 
-	// Import standard extensions (from Goal's full.go)
-	// Note: These require the Goal source to be available
-	// For production, you may need to vendor these or use a different approach
-	
-	// Import our custom extensions
-	http.Import(ctx, "")
-	json.Import(ctx, "")
-	sqlite.Import(ctx, "")
+	// Standard Goal extensions: gives us say/print/read/open (os),
+	// math.*, zip.*, base64.*.
+	gos.Import(ctx, "")
+	math.Import(ctx, "math")
+	zip.Import(ctx, "")
+	base64.Import(ctx, "")
 
-	// Create help function that includes our extensions
+	// Project extensions.
+	http.Import(ctx, "")
+
+	// Help function that includes our extensions on top of Goal's built-ins.
 	hf := help.Wrap(
 		help.HelpFunc(),
+		math.HelpFunc(),
+		zip.HelpFunc(),
+		base64.HelpFunc(),
 		http.HelpFunc(),
-		json.HelpFunc(),
-		sqlite.HelpFunc(),
 	)
 
-	// Run Goal with our context
 	cmd.Exit(cmd.Run(ctx, cmd.Config{
 		Help: hf,
 		Man:  "strava_goal",

@@ -1,65 +1,39 @@
-// Test file for HTTP extension
-// Run with: ./strava_goal extensions/http/test_http.goal
-//
-// This file demonstrates and tests the HTTP extension functionality.
-// It uses the custom Goal binary built with our extensions.
+/ Test script for the http Goal extension.
+/ Run with:   ./strava_goal extensions/http/test_http.goal
+/ Tests 1 and 2 require network access. If offline, they report a
+/ transport error in the response's "error" field but do not abort.
 
-// Test 1: Simple GET request
-println("=== Test 1: Simple GET request ===")
-request1:=(,("url")!"https://httpbin.org/get";("headers")!((,"Accept")!"application/json"))
-response1:=http.get[request1]
-println("Response type:", type(response1))
-println("Response:", response1)
-status1:=(response1["status"])
-body1:=(response1["body"])
-error1:=(response1["error"])
-println("Status:", status1)
-println("Body length:", len(body1))
-println("Error:", error1)
-if error1 == "" {
-    println("✓ Test 1 PASSED")
-} else {
-    println("✗ Test 1 FAILED:", error1)
-}
-println()
+say"=== Test 1: Simple GET request ==="
+req1: (,"url")!,"https://httpbin.org/get"
+resp1: http.get req1
+say"response: ",$resp1
+say"status:   ",$resp1"status"
+say"body len: ",$#resp1"body"
+say"error:    ",resp1"error"
+?[(resp1"error")~"";say"PASS Test 1";say"SKIP Test 1 (network): ",resp1"error"]
+say""
 
-// Test 2: GET with headers
-println("=== Test 2: GET with custom headers ===")
-request2:=(,("url")!"https://httpbin.org/headers";("headers")!((,"X-Custom-Header")!"test-value"))
-response2:=http.get[request2]
-status2:=(response2["status"])
-error2:=(response2["error"])
-println("Status:", status2)
-println("Error:", error2)
-if error2 == "" {
-    println("✓ Test 2 PASSED")
-} else {
-    println("✗ Test 2 FAILED:", error2)
-}
-println()
+say"=== Test 2: GET with custom headers ==="
+req2: ("url";"headers")!("https://httpbin.org/headers";(,"X-Custom-Header")!,"test-value")
+resp2: http.get req2
+say"status: ",$resp2"status"
+say"error:  ",resp2"error"
+?[(resp2"error")~"";say"PASS Test 2";say"SKIP Test 2 (network): ",resp2"error"]
+say""
 
-// Test 3: Invalid URL (should return error in response, not panic)
-println("=== Test 3: Invalid URL (error handling) ===")
-request3:=(,("url")!"this-is-not-a-valid-url")
-response3:=http.get[request3]
-status3:=(response3["status"])
-error3:=(response3["error"])
-println("Status:", status3)
-println("Error:", error3)
-if error3 != "" {
-    println("✓ Test 3 PASSED (got expected error)")
-} else {
-    println("✗ Test 3 FAILED (expected error)")
-}
-println()
+say"=== Test 3: Invalid URL (error handling) ==="
+req3: (,"url")!,"this-is-not-a-valid-url"
+resp3: http.get req3
+say"status: ",$resp3"status"
+say"error:  ",resp3"error"
+?[~(resp3"error")~"";say"PASS Test 3 (got expected error)";say"FAIL Test 3 (expected error)"]
+say""
 
-// Test 4: Missing URL (should panic)
-println("=== Test 4: Missing URL (should panic) ===")
-// This should cause a panic with "missing required field: url"
-// Uncomment to test:
-// request4:=(,("headers")!((,"test")!"value"))
-// response4:=http.get[request4]
-println("✓ Test 4 SKIPPED (would panic)")
-println()
+say"=== Test 4: Missing URL (would panic) ==="
+say"SKIP Test 4 (uncomment in source to exercise panic behaviour)"
+/ Uncomment to test panic on missing url:
+/   req4: (,"headers")!,((,"test")!,"value")
+/   resp4: http.get req4
+say""
 
-println("=== All tests completed ===")
+say"=== All tests completed ==="

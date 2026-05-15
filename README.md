@@ -44,6 +44,26 @@ running/
 2. **Go**: Required for building Goal extensions (v1.20+ recommended)
 3. **Node.js**: Required for Svelte frontend (v18+ recommended)
 
+### Build the custom Goal interpreter (EXT-1)
+
+The project builds a custom Goal interpreter (`strava_goal`) that bundles the
+standard Goal extensions plus the project's own extensions (currently `http`).
+
+```bash
+# From the repository root:
+go build -o strava_goal ./cmd/strava_goal
+
+# Run the http extension smoke-test script:
+./strava_goal extensions/http/test_http.goal
+
+# Run the Go unit tests for the http extension:
+go test ./extensions/http/...
+```
+
+The Go module is rooted at `github.com/mandus/runningdash` and depends on
+`codeberg.org/anaseto/goal` from the module proxy — no local Goal checkout is
+required.
+
 ### Quick Start (Once Implemented)
 
 ```bash
