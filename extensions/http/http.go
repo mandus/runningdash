@@ -203,7 +203,7 @@ func doRequest(req *request) *response {
 		if err != nil {
 			lastErr = err
 			if i < maxRetries-1 {
-				time.Sleep(retryDelay * time.Duration(i+1))
+				time.Sleep(time.Duration(1<<i) * retryDelay)
 				continue
 			}
 			break
