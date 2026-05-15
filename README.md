@@ -44,6 +44,26 @@ running/
 2. **Go**: Required for building Goal extensions (v1.20+ recommended)
 3. **Node.js**: Required for Svelte frontend (v18+ recommended)
 
+### Build the custom Goal interpreter (EXT-1)
+
+The project builds a custom Goal interpreter (`strava_goal`) that bundles the
+standard Goal extensions plus the project's own extensions (currently `http`).
+
+```bash
+# From the repository root:
+go build -o strava_goal ./cmd/strava_goal
+
+# Run the http extension smoke-test script:
+./strava_goal extensions/http/test_http.goal
+
+# Run the Go unit tests for the http extension:
+go test ./extensions/http/...
+```
+
+The Go module is rooted at `github.com/mandus/runningdash` and depends on
+`codeberg.org/anaseto/goal` from the module proxy — no local Goal checkout is
+required.
+
 ### Quick Start (Once Implemented)
 
 ```bash
@@ -181,6 +201,54 @@ Spec Update → Task Breakdown → Implementation → Validation → Merge
 ---
 
 ## 🔧 Setup
+
+### Prerequisites
+
+#### 1. Install Go (1.20+)
+Goal extensions are written in Go. Install Go first:
+
+**Linux (Debian/Ubuntu):**
+```bash
+sudo apt update && sudo apt install -y golang-go
+```
+
+**Linux (Alpine):**
+```bash
+sudo apk add go
+```
+
+**Mac:**
+```bash
+brew install go
+```
+
+**Verify:**
+```bash
+go version
+```
+
+#### 2. Install Goal
+Clone and install Goal from source:
+
+```bash
+# Clone Goal repository
+git clone https://codeberg.org/anaseto/goal.git
+cd goal
+
+# Build and install with full tags (required for extensions)
+go build --tags full ./cmd/goal
+go install --tags full ./cmd/goal
+
+# Verify installation
+goal version
+```
+
+**Note:** The `--tags full` flag enables all features needed for extension development.
+
+#### 3. Install SQLite Driver (for Goal extensions)
+```bash
+go get github.com/mattn/go-sqlite3
+```
 
 ### Install Pre-Commit Hook
 

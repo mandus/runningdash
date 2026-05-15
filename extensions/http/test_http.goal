@@ -1,0 +1,39 @@
+/ Test script for the http Goal extension.
+/ Run with:   ./strava_goal extensions/http/test_http.goal
+/ Tests 1 and 2 require network access. If offline, they report a
+/ transport error in the response's "error" field but do not abort.
+
+say"=== Test 1: Simple GET request ==="
+req1: (,"url")!,"https://httpbin.org/get"
+resp1: http.get req1
+say"response: ",$resp1
+say"status:   ",$resp1"status"
+say"body len: ",$#resp1"body"
+say"error:    ",resp1"error"
+?[(resp1"error")~"";say"PASS Test 1";say"SKIP Test 1 (network): ",resp1"error"]
+say""
+
+say"=== Test 2: GET with custom headers ==="
+req2: ("url";"headers")!("https://httpbin.org/headers";(,"X-Custom-Header")!,"test-value")
+resp2: http.get req2
+say"status: ",$resp2"status"
+say"error:  ",resp2"error"
+?[(resp2"error")~"";say"PASS Test 2";say"SKIP Test 2 (network): ",resp2"error"]
+say""
+
+say"=== Test 3: Invalid URL (error handling) ==="
+req3: (,"url")!,"this-is-not-a-valid-url"
+resp3: http.get req3
+say"status: ",$resp3"status"
+say"error:  ",resp3"error"
+?[~(resp3"error")~"";say"PASS Test 3 (got expected error)";say"FAIL Test 3 (expected error)"]
+say""
+
+say"=== Test 4: Missing URL (would panic) ==="
+say"SKIP Test 4 (uncomment in source to exercise panic behaviour)"
+/ Uncomment to test panic on missing url:
+/   req4: (,"headers")!,((,"test")!,"value")
+/   resp4: http.get req4
+say""
+
+say"=== All tests completed ==="

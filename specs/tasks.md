@@ -31,9 +31,9 @@ This document breaks down the implementation of the Strava Training Dashboard in
 | ID | Task | Description | Spec Ref | Dependencies | Effort | Status |
 |----|------|-------------|----------|--------------|--------|--------|
 | EXT-1 | Create `http` Goal extension (Go) | Wrap Go's `net/http` for GET/POST requests with headers | ADR-2 | None | Medium | ✅ |
-| EXT-2 | Create `sqlite` Goal extension (Go) | Wrap `github.com/mattn/go-sqlite3` for DB operations | ADR-5 | None | Medium | ✅ |
-| EXT-3 | Create `json` Goal extension (Go) | Basic JSON parsing for Strava API responses | ADR-2 | None | Small | ✅ |
-| INF-1 | Set up Goal development environment | Install Goal, verify toolchain, test extensions | None | None | Small | ✅ |
+| EXT-2 | Create `sqlite` Goal extension (Go) | Wrap `github.com/mattn/go-sqlite3` for DB operations | ADR-5 | None | Medium | ⬜ |
+| EXT-3 | Create `json` Goal extension (Go) | Basic JSON parsing for Strava API responses | ADR-2 | None | Small | ⬜ |
+| INF-1 | Set up Goal development environment | Install Goal, verify toolchain, test extensions | None | None | Small | ⬜ |
 | INF-2 | Initialize Svelte frontend | `npm create vite@latest frontend -- --template svelte` | ADR-4 | None | Small | ⬜ |
 
 ---
