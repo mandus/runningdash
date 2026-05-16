@@ -1,78 +1,54 @@
-// Test file for SQLite extension
-// Run with: ./strava_goal extensions/sqlite/test_sqlite.goal
-//
-// This file demonstrates and tests the SQLite extension functionality.
-// It uses the custom Goal binary built with our extensions.
+/ Test script for the sqlite Goal extension.
+/ Run with:   ./strava_goal extensions/sqlite/test_sqlite.goal
 
-// Test 1: Open and close connection
-println("=== Test 1: Open and close connection ===")
-conn_id:=sqlite.open[":memory:"]
-println("Connection ID:", conn_id)
-if conn_id > 0 {
-    println("✓ Test 1 PASSED")
-} else {
-    println("✗ Test 1 FAILED")
-}
-result:=sqlite.close[conn_id]
-println("Close result:", result)
-println()
+say"=== Test 1: Open and close connection ==="
+conn: sqlite.open[":memory:"]
+say"Connection ID: " conn
+?[conn>0;say"PASS Test 1";say"FAIL Test 1"]
+result: sqlite.close[conn]
+say"Close result: " result
+say""
 
-// Test 2: Create table and insert data
-println("=== Test 2: Create table and insert data ===")
-conn_id:=sqlite.open[":memory:"]
-// Create users table
-exec_result:=sqlite.exec[conn_id;"CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, email TEXT)";[]]
-println("Create table result:", exec_result)
+say"=== Test 2: Create table and insert data ==="
+conn: sqlite.open[":memory:"]
+createreq: ("conn_id";"sql")!(conn;"CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, email TEXT)")
+execresult: sqlite.exec createreq
+say"Create table result: " execresult
 
-// Insert a user
-insert_result:=sqlite.exec[conn_id;"INSERT INTO users (name, email) VALUES (?, ?)";["Alice";"alice@example.com"]]
-println("Insert result (affected rows):", insert_result)
+sql2: "INSERT INTO users (name, email) VALUES (?, ?)"
+insertreq: ("conn_id";"sql";"params")!(conn;sql2;"Alice" "alice@example.com")
+insertresult: sqlite.exec insertreq
+say" Insert result (affected rows): " insertresult
 
-// Insert another user
-insert_result2:=sqlite.exec[conn_id;"INSERT INTO users (name, email) VALUES (?, ?)";["Bob";"bob@example.com"]]
-println("Insert result 2 (affected rows):", insert_result2)
+sql3: "INSERT INTO users (name, email) VALUES (?, ?)"
+insertreq2: ("conn_id";"sql";"params")!(conn;sql3;"Bob" "bob@example.com")
+insertresult2: sqlite.exec insertreq2
+say" Insert result 2 (affected rows): " insertresult2
+?[insertresult>0 & insertresult2>0;say"PASS Test 2";say"FAIL Test 2"]
+say""
 
-if insert_result > 0 && insert_result2 > 0 {
-    println("✓ Test 2 PASSED")
-} else {
-    println("✗ Test 2 FAILED")
-}
-println()
+say"=== Test 3: Query data ==="
+sql4: "SELECT id, name, email FROM users ORDER BY id"
+queryreq: ("conn_id";"sql")!(conn;sql4)
+rows: sqlite.query queryreq
+say"Query succeeded, got: " 
+say rows
+?[2~#rows;say"PASS Test 3";say"FAIL Test 3"]
+say""
 
-// Test 3: Query data
-println("=== Test 3: Query data ===")
-// Query all users
-rows:=sqlite.query[conn_id;"SELECT id, name, email FROM users ORDER BY id";[]]
-println("Number of rows:", len(rows))
+say"=== Test 4: Query with parameters ==="
+sql5: "SELECT name FROM users WHERE email = ?"
+paramqueryreq: ("conn_id";"sql";"params")!(conn;sql5;"alice@example.com")
+paramrows: sqlite.query paramqueryreq
+say"Query with params succeeded, got: "
+say paramrows
+say"PASS Test 4"
+say""
 
-if len(rows) == 2 {
-    println("✓ Test 3 PASSED")
-    // Print first row
-    first_row:=rows[0]
-    println("First row:", first_row)
-} else {
-    println("✗ Test 3 FAILED (expected 2 rows, got", len(rows), ")")
-}
-println()
+say"=== Test 5: Close connection ==="
+closeresult: sqlite.close[conn]
+say"Close result: " closeresult
+say"PASS Test 5"
+say""
 
-// Test 4: Query with parameters
-println("=== Test 4: Query with parameters ===")
-// Query for specific user
-param_rows:=sqlite.query[conn_id;"SELECT name FROM users WHERE name = ?";["Alice"]]
-println("Rows matching 'Alice':", len(param_rows))
-
-if len(param_rows) == 1 {
-    println("✓ Test 4 PASSED")
-} else {
-    println("✗ Test 4 FAILED")
-}
-println()
-
-// Test 5: Close connection
-println("=== Test 5: Close connection ===")
-close_result:=sqlite.close[conn_id]
-println("Close result:", close_result)
-println("✓ Test 5 PASSED")
-println()
-
-println("=== All tests completed ===")
+say"=== All tests completed ==="
