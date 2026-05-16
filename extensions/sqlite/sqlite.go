@@ -14,8 +14,8 @@ import (
 	"fmt"
 	"strings"
 
-	_ "github.com/mattn/go-sqlite3"
 	"codeberg.org/anaseto/goal"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 // connections stores open database connections by ID
@@ -35,9 +35,10 @@ var nextConnectionID int64 = 1
 //	sqlite.rollback[conn_id] : rollback transaction
 //
 // For query and exec, request is a dict with keys:
-//   conn_id (int): connection ID
-//   sql (string): SQL query
-//   params (array of strings, optional): query parameters
+//
+//	conn_id (int): connection ID
+//	sql (string): SQL query
+//	params (array of strings, optional): query parameters
 //
 // Connection IDs are integers. All functions that need a connection take conn_id as a parameter.
 func Import(ctx *goal.Context, pfx string) {
