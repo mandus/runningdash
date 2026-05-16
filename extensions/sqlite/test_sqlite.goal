@@ -1,0 +1,54 @@
+/ Test script for the sqlite Goal extension.
+/ Run with:   ./strava_goal extensions/sqlite/test_sqlite.goal
+
+say"=== Test 1: Open and close connection ==="
+conn: sqlite.open[":memory:"]
+say"Connection ID: " conn
+?[conn>0;say"PASS Test 1";say"FAIL Test 1"]
+result: sqlite.close[conn]
+say"Close result: " result
+say""
+
+say"=== Test 2: Create table and insert data ==="
+conn: sqlite.open[":memory:"]
+createreq: ("conn_id";"sql")!(conn;"CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, email TEXT)")
+execresult: sqlite.exec createreq
+say"Create table result: " execresult
+
+sql2: "INSERT INTO users (name, email) VALUES (?, ?)"
+insertreq: ("conn_id";"sql";"params")!(conn;sql2;"Alice" "alice@example.com")
+insertresult: sqlite.exec insertreq
+say" Insert result (affected rows): " insertresult
+
+sql3: "INSERT INTO users (name, email) VALUES (?, ?)"
+insertreq2: ("conn_id";"sql";"params")!(conn;sql3;"Bob" "bob@example.com")
+insertresult2: sqlite.exec insertreq2
+say" Insert result 2 (affected rows): " insertresult2
+?[insertresult>0 & insertresult2>0;say"PASS Test 2";say"FAIL Test 2"]
+say""
+
+say"=== Test 3: Query data ==="
+sql4: "SELECT id, name, email FROM users ORDER BY id"
+queryreq: ("conn_id";"sql")!(conn;sql4)
+rows: sqlite.query queryreq
+say"Query succeeded, got: " 
+say rows
+?[2~#rows;say"PASS Test 3";say"FAIL Test 3"]
+say""
+
+say"=== Test 4: Query with parameters ==="
+sql5: "SELECT name FROM users WHERE email = ?"
+paramqueryreq: ("conn_id";"sql";"params")!(conn;sql5;"alice@example.com")
+paramrows: sqlite.query paramqueryreq
+say"Query with params succeeded, got: "
+say paramrows
+say"PASS Test 4"
+say""
+
+say"=== Test 5: Close connection ==="
+closeresult: sqlite.close[conn]
+say"Close result: " closeresult
+say"PASS Test 5"
+say""
+
+say"=== All tests completed ==="

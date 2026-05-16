@@ -1,9 +1,8 @@
 // Custom Goal interpreter for the Strava Training Dashboard.
 //
 // This builds a Goal binary with the project's custom extensions linked in.
-// As of EXT-1, only the http extension is registered. Additional extensions
-// (json — EXT-3, sqlite — EXT-2, httpserver — EXT-4) will be wired in here
-// as those tasks complete.
+// As of EXT-2, http and sqlite extensions are registered. Additional extensions
+// (json — EXT-3, httpserver — EXT-4) will be wired in here as those tasks complete.
 //
 // To build (from the repository root):
 //
@@ -30,6 +29,7 @@ import (
 
 	// Project extensions.
 	"github.com/mandus/runningdash/extensions/http"
+	"github.com/mandus/runningdash/extensions/sqlite"
 )
 
 func main() {
@@ -45,6 +45,7 @@ func main() {
 
 	// Project extensions.
 	http.Import(ctx, "")
+	sqlite.Import(ctx, "")
 
 	// Help function that includes our extensions on top of Goal's built-ins.
 	hf := help.Wrap(
@@ -53,6 +54,7 @@ func main() {
 		zip.HelpFunc(),
 		base64.HelpFunc(),
 		http.HelpFunc(),
+		sqlite.HelpFunc(),
 	)
 
 	cmd.Exit(cmd.Run(ctx, cmd.Config{
